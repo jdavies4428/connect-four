@@ -50,6 +50,7 @@ export default function Game() {
   const pollRef = useRef(null);
   const aiRef = useRef(null);
   const workerRef = useRef(null);
+  const touchedRef = useRef(false);
 
   const isMyTurn = mode === "ai"
     ? currentPlayer === P1 && !winner
@@ -300,7 +301,7 @@ export default function Game() {
       if (rafId) cancelAnimationFrame(rafId);
       if (worker) { worker.onmessage = null; worker.terminate(); workerRef.current = null; }
     };
-  }, [mode, currentPlayer, winner, board, difficulty, moveCount, aiThinking]);
+  }, [mode, currentPlayer, winner, board, difficulty, moveCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Human move ──
   const makeMove = async (col) => {
@@ -554,14 +555,18 @@ export default function Game() {
                       boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)",
                       cursor: isMyTurn && !aiThinking && getDropRow(board, c) >= 0 ? "pointer" : "default",
                     }}
-                    onClick={() => makeMove(c)}
+                    onClick={() => {
+                      if (touchedRef.current) { touchedRef.current = false; return; }
+                      makeMove(c);
+                    }}
                     onMouseEnter={() => { setHoverCol(c); if (isMyTurn && !aiThinking && audioReady) sounds.hover(); }}
                     onMouseLeave={() => setHoverCol(-1)}
-                    onTouchStart={(e) => {
-                      e.preventDefault();
+                    onTouchStart={() => {
+                      touchedRef.current = true;
                       setHoverCol(c);
                       makeMove(c);
                     }}
+                    onTouchEnd={() => setHoverCol(-1)}
                   >
                     {p !== EMPTY && (
                       <div
