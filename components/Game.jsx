@@ -638,8 +638,8 @@ export default function Game({ initialCode = "" }) {
                     key={`${r}-${c}`}
                     className="rounded-full flex items-center justify-center relative"
                     style={{
-                      width: "clamp(40px, calc((100vw - 48px) / 7), 56px)",
-                      height: "clamp(40px, calc((100vw - 48px) / 7), 56px)",
+                      width: "clamp(40px, calc((100vw - 48px) / 7), 72px)",
+                      height: "clamp(40px, calc((100vw - 48px) / 7), 72px)",
                       background: "#0a0e3d",
                       boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)",
                       cursor: isMyTurn && !aiThinking && getDropRow(board, c) >= 0 ? "pointer" : "default",
