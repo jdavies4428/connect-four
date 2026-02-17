@@ -512,8 +512,8 @@ export default function Game({ initialCode = "" }) {
               : aiThinking
                 ? <span>{p2Name.toUpperCase()} THINKING<span className="animate-thinkDot">...</span></span>
                 : isMyTurn
-                  ? `${(mode === "ai" ? playerName : playerName).toUpperCase()}'S TURN`
-                  : `${(mode === "ai" ? opponentName : opponentName).toUpperCase()}'S TURN`
+                  ? (mode === "ai" ? "YOUR TURN" : `${playerName.toUpperCase()}'S TURN`)
+                  : (mode === "ai" ? `${opponentName.toUpperCase()} THINKING` : `${opponentName.toUpperCase()}'S TURN`)
             }
           </div>
 
