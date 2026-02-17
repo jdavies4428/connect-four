@@ -82,7 +82,7 @@ export default function Game() {
   const goToLobby = () => {
     clearTimeout(aiRef.current);
     clearInterval(pollRef.current);
-    workerRef.current?.terminate(); workerRef.current = null;
+    if (workerRef.current) workerRef.current.onmessage = null;
     setScreen("lobby"); setMode(null); setWinner(null); setShowConfetti(false);
     setError(""); setJoinInput(""); setAiThinking(false); setLoading(false);
     setPlayerName(""); setOpponentName(""); setScores({ p1: 0, p2: 0, draws: 0 });
@@ -226,19 +226,24 @@ export default function Game() {
     return () => { active = false; clearInterval(pollRef.current); };
   }, [screen, roomCode, moveCount, winner, playerNum, mode, gameNumber, opponentName]);
 
+  // Create the AI worker once on mount and reuse it — avoids per-turn init cost on mobile
+  useEffect(() => {
+    workerRef.current = new Worker("/ai-worker.js");
+    return () => { workerRef.current?.terminate(); workerRef.current = null; };
+  }, []);
+
   // ── AI move ──
   useEffect(() => {
     if (mode !== "ai" || currentPlayer !== P2 || winner || aiThinking) return;
+    const worker = workerRef.current;
+    if (!worker) return;
     setAiThinking(true);
 
-    // Run AI in a Web Worker so the main thread (and UI) stays fully responsive
-    const worker = new Worker("/ai-worker.js");
-    workerRef.current = worker;
-
     worker.onmessage = (e) => {
+      worker.onmessage = null;
       const { col } = e.data;
       const row = col >= 0 ? getDropRow(board, col) : -1;
-      if (col < 0 || row < 0) { setAiThinking(false); worker.terminate(); return; }
+      if (col < 0 || row < 0) { setAiThinking(false); return; }
 
       aiRef.current = setTimeout(() => {
         sounds.drop();
@@ -265,14 +270,13 @@ export default function Game() {
           w === -1 ? sounds.turn() : sounds.lose();
           setScreen("gameOver");
         }
-        worker.terminate();
       }, 200);
     };
 
-    worker.onerror = () => { setAiThinking(false); worker.terminate(); };
+    worker.onerror = () => { worker.onerror = null; setAiThinking(false); };
     worker.postMessage({ board, difficulty });
 
-    return () => { workerRef.current?.terminate(); workerRef.current = null; clearTimeout(aiRef.current); };
+    return () => { if (worker) worker.onmessage = null; clearTimeout(aiRef.current); };
   }, [mode, currentPlayer, winner, board, difficulty, moveCount, aiThinking]);
 
   // ── Human move ──

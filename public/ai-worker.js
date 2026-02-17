@@ -121,7 +121,7 @@ function getAiMove(board, difficulty, aiPlayer) {
     b[row][col] = human;
     if (checkWin(b, row, col)) return col;
   }
-  const deadline = Date.now() + (difficulty === "hard" ? 500 : 300);
+  const deadline = Date.now() + (difficulty === "hard" ? 250 : 120);
   if (difficulty === "easy") {
     if (Math.random() < 0.3) return minimax(board, 2, -Infinity, Infinity, true, aiPlayer, -1, -1, deadline)[0];
     return cols[Math.floor(Math.random() * cols.length)];
