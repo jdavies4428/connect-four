@@ -9,6 +9,15 @@ import Confetti from "./Confetti";
 
 const POLL_MS = 700;
 const DIFF = { easy: "ROOKIE", medium: "STANDARD", hard: "BRUTAL" };
+
+const LOBBY_BOARD = [
+  [0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 1, 0, 0, 0],
+  [0, 0, 2, 1, 2, 0, 0],
+  [0, 1, 2, 2, 1, 1, 0],
+  [2, 1, 1, 2, 2, 1, 2],
+];
 const DIFF_COLOR = { easy: "#7bed9f", medium: "#70a1ff", hard: "#ff6b81" };
 const DIFF_DESC = { easy: "Goes easy on you", medium: "Puts up a fight", hard: "Good luck" };
 
@@ -403,34 +412,90 @@ export default function Game({ initialCode = "" }) {
         {muted ? "MUTE" : "SFX"}
       </button>
 
-      {/* Title */}
-      <h1 className="text-xl sm:text-3xl font-bold mb-0.5 animate-shimmer bg-clip-text text-transparent"
-        style={{ backgroundImage: "linear-gradient(90deg, #ff4757, #ffd32a, #ff4757)", backgroundSize: "200% auto" }}>
-        CONNECT FOUR
-      </h1>
-      <div className="text-[9px] text-[#555] tracking-[4px] mb-5">MULTIPLAYER ARCADE</div>
+      {/* Title — hidden on lobby (lobby card has its own) */}
+      {screen !== "lobby" && (
+        <>
+          <h1 className="text-xl sm:text-3xl font-bold mb-0.5 animate-shimmer bg-clip-text text-transparent"
+            style={{ backgroundImage: "linear-gradient(90deg, #ff4757, #ffd32a, #ff4757)", backgroundSize: "200% auto" }}>
+            CONNECT FOUR
+          </h1>
+          <div className="text-[9px] text-[#555] tracking-[4px] mb-5">MULTIPLAYER ARCADE</div>
+        </>
+      )}
 
       {/* ── LOBBY ── */}
       {screen === "lobby" && (
-        <div className="flex flex-col items-center gap-5 animate-slideUp">
-          <button className="btn w-56 text-[#eccc68] border-[#eccc68]"
-            onClick={() => setScreen("difficulty")}>VS COMPUTER</button>
+        <div className="flex flex-col items-center w-full max-w-[320px] px-4 animate-slideUp">
+          <div className="w-full rounded-2xl overflow-hidden"
+            style={{ background: "#0d0d20", border: "1px solid #1e1e3a", boxShadow: "0 20px 60px rgba(0,0,0,0.8)" }}>
 
-          <div className="text-[10px] text-[#333] tracking-[4px]">— ONLINE —</div>
+            {/* Rainbow accent bar */}
+            <div className="h-1 w-full animate-shimmer"
+              style={{ background: "linear-gradient(90deg,#ff4757,#ff6b35,#ffd32a,#7bed9f,#70a1ff,#ff4757)", backgroundSize: "200% auto" }} />
 
-          <button className="btn w-56 text-[#7bed9f] border-[#7bed9f]"
-            onClick={startCreate}>CREATE ROOM</button>
+            <div className="px-6 pt-6 pb-7 flex flex-col items-center gap-5">
 
-          <div className="flex flex-col items-center gap-3">
-            <input className="input-code" value={joinInput}
-              onChange={e => { setJoinInput(e.target.value.slice(0, 4)); setError(""); }}
-              placeholder="CODE" maxLength={4} />
-            <button className="btn w-56 text-[#70a1ff] border-[#70a1ff]"
-              onClick={startJoin} disabled={loading}>
-              {loading ? "..." : "JOIN ROOM"}
-            </button>
+              {/* Title */}
+              <div className="text-center">
+                <div className="text-3xl font-bold leading-none tracking-wider">
+                  <span style={{ color: "#ff4757", textShadow: "0 0 24px rgba(255,71,87,0.6)" }}>CONNECT</span>
+                  {" "}
+                  <span style={{ color: "#ffd32a", textShadow: "0 0 24px rgba(255,211,42,0.6)" }}>FOUR</span>
+                </div>
+                <div className="text-[9px] text-[#444] tracking-[5px] mt-1.5">MULTIPLAYER ARCADE</div>
+              </div>
+
+              {/* Decorative mini-board */}
+              <div className="rounded-xl p-1.5"
+                style={{ background: "linear-gradient(180deg,#1a237e,#0d1557)", border: "1px solid #283593", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
+                <div className="grid gap-[3px]" style={{ gridTemplateColumns: "repeat(7, 1fr)" }}>
+                  {LOBBY_BOARD.map((row, r) => row.map((cell, c) => (
+                    <div key={`lb-${r}-${c}`}
+                      style={{ width: 28, height: 28, borderRadius: "50%", background: "#0a0e3d", boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {cell !== 0 && (
+                        <div style={{
+                          width: "80%", height: "80%", borderRadius: "50%",
+                          background: cell === P1
+                            ? "radial-gradient(circle at 35% 35%, #ff6b81, #ff4757 60%, #c0392b)"
+                            : "radial-gradient(circle at 35% 35%, #ffe066, #ffd32a 60%, #d4a017)",
+                          boxShadow: "inset 0 -1px 3px rgba(0,0,0,0.3)",
+                        }} />
+                      )}
+                    </div>
+                  )))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="w-full flex flex-col gap-3">
+                <button className="btn w-full text-[#eccc68] border-[#eccc68]"
+                  onClick={() => setScreen("difficulty")}>VS COMPUTER</button>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px" style={{ background: "#1a1a2e" }} />
+                  <div className="text-[9px] text-[#333] tracking-[3px]">ONLINE</div>
+                  <div className="flex-1 h-px" style={{ background: "#1a1a2e" }} />
+                </div>
+
+                <button className="btn w-full text-[#7bed9f] border-[#7bed9f]"
+                  onClick={startCreate}>CREATE ROOM</button>
+
+                <div className="flex gap-2 items-stretch">
+                  <input className="input-code flex-1 min-w-0" style={{ width: "auto", letterSpacing: "6px" }}
+                    value={joinInput}
+                    onChange={e => { setJoinInput(e.target.value.slice(0, 4)); setError(""); }}
+                    placeholder="CODE" maxLength={4} />
+                  <button className="btn shrink-0 text-[#70a1ff] border-[#70a1ff]"
+                    style={{ padding: "12px 16px", fontSize: "0.7rem" }}
+                    onClick={startJoin} disabled={loading}>
+                    {loading ? "..." : "JOIN"}
+                  </button>
+                </div>
+              </div>
+
+              {error && <div className="text-[#ff4757] text-xs text-center">{error}</div>}
+            </div>
           </div>
-          {error && <div className="text-[#ff4757] text-xs">{error}</div>}
         </div>
       )}
 
@@ -653,7 +718,7 @@ export default function Game({ initialCode = "" }) {
         </div>
       )}
 
-      <div className="fixed bottom-3 text-[9px] text-[#222] tracking-widest">DROP FOUR TO WIN</div>
+      {screen !== "lobby" && <div className="fixed bottom-3 text-[9px] text-[#222] tracking-widest">DROP FOUR TO WIN</div>}
     </div>
   );
 }
