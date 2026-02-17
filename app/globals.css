@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap');
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html, body {
+  overscroll-behavior: none;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+@keyframes dropPiece0 { 0% { transform: translateY(-400px); } 70% { transform: translateY(0); } 85% { transform: translateY(-8px); } 100% { transform: translateY(0); } }
+@keyframes dropPiece1 { 0% { transform: translateY(-340px); } 70% { transform: translateY(0); } 85% { transform: translateY(-7px); } 100% { transform: translateY(0); } }
+@keyframes dropPiece2 { 0% { transform: translateY(-280px); } 70% { transform: translateY(0); } 85% { transform: translateY(-6px); } 100% { transform: translateY(0); } }
+@keyframes dropPiece3 { 0% { transform: translateY(-220px); } 70% { transform: translateY(0); } 85% { transform: translateY(-5px); } 100% { transform: translateY(0); } }
+@keyframes dropPiece4 { 0% { transform: translateY(-160px); } 70% { transform: translateY(0); } 85% { transform: translateY(-4px); } 100% { transform: translateY(0); } }
+@keyframes dropPiece5 { 0% { transform: translateY(-100px); } 70% { transform: translateY(0); } 85% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
+
+@keyframes confettiFall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.drop-0 { animation: dropPiece0 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+.drop-1 { animation: dropPiece1 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+.drop-2 { animation: dropPiece2 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+.drop-3 { animation: dropPiece3 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+.drop-4 { animation: dropPiece4 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+.drop-5 { animation: dropPiece5 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+
+.scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+}
+
+.btn {
+  @apply font-pixel border-2 px-6 py-3 text-sm cursor-pointer transition-all duration-200 bg-transparent uppercase tracking-wider;
+  @apply active:translate-y-0 hover:-translate-y-0.5 hover:brightness-125;
+}
+
+.btn-sm {
+  @apply px-4 py-2 text-xs;
+}
+
+.input-code {
+  @apply font-pixel bg-[#0a0a1a] border-2 border-[#333] text-[#e0e0ff] p-3 text-xl text-center outline-none uppercase;
+  letter-spacing: 8px;
+  width: 160px;
+}
+.input-code:focus {
+  @apply border-[#70a1ff];
+  box-shadow: 0 0 15px rgba(112, 161, 255, 0.2);
+}
+
+.input-name {
+  @apply font-pixel bg-[#0a0a1a] border-2 border-[#333] text-[#e0e0ff] p-3 text-base text-center outline-none uppercase;
+  letter-spacing: 3px;
+  width: min(240px, 80vw);
+}
+.input-name:focus {
+  @apply border-[#eccc68];
+  box-shadow: 0 0 15px rgba(236, 204, 104, 0.2);
+}
+
+/* Mobile safe area */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
