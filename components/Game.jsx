@@ -12,7 +12,7 @@ const DIFF = { easy: "ROOKIE", medium: "STANDARD", hard: "BRUTAL" };
 const DIFF_COLOR = { easy: "#7bed9f", medium: "#70a1ff", hard: "#ff6b81" };
 const DIFF_DESC = { easy: "Goes easy on you", medium: "Puts up a fight", hard: "Good luck" };
 
-export default function Game() {
+export default function Game({ initialCode = "" }) {
   // Core state
   const [screen, setScreen] = useState("lobby");
   const [mode, setMode] = useState(null);
@@ -46,6 +46,9 @@ export default function Game() {
   const [loading, setLoading] = useState(false);
 
   const [copied, setCopied] = useState(false);
+  const [muted, setMutedState] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem("muted") === "1"
+  );
 
   const pollRef = useRef(null);
   const aiRef = useRef(null);
@@ -228,6 +231,17 @@ export default function Game() {
     return () => { active = false; clearInterval(pollRef.current); };
   }, [screen, roomCode, moveCount, winner, playerNum, mode, gameNumber, opponentName]);
 
+  // Sync mute state to sounds module + localStorage
+  useEffect(() => {
+    sounds.setMuted(muted);
+    localStorage.setItem("muted", muted ? "1" : "0");
+  }, [muted]);
+
+  // Pre-fill join input when arriving via a share link (/room/CODE)
+  useEffect(() => {
+    if (initialCode) setJoinInput(initialCode.toUpperCase().slice(0, 4));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── AI move ──
   useEffect(() => {
     if (mode !== "ai" || currentPlayer !== P2 || winner || aiThinking) return;
@@ -380,6 +394,15 @@ export default function Game() {
       <div className="scanlines" />
       {showConfetti && <Confetti />}
 
+      {/* Mute toggle */}
+      <button
+        className="absolute top-3 right-3 font-pixel text-[10px] border px-2 py-1.5 transition-all duration-150"
+        style={{ color: muted ? "#2a2a2a" : "#555", borderColor: muted ? "#1a1a1a" : "#333" }}
+        onClick={(e) => { e.stopPropagation(); setMutedState(m => !m); }}
+      >
+        {muted ? "MUTE" : "SFX"}
+      </button>
+
       {/* Title */}
       <h1 className="text-xl sm:text-3xl font-bold mb-0.5 animate-shimmer bg-clip-text text-transparent"
         style={{ backgroundImage: "linear-gradient(90deg, #ff4757, #ffd32a, #ff4757)", backgroundSize: "200% auto" }}>
@@ -456,16 +479,17 @@ export default function Game() {
             style={{ textShadow: "0 0 20px rgba(123,237,159,0.4)" }}>{roomCode}</div>
           <button
             className="btn btn-sm border-[#7bed9f] text-[#7bed9f]"
-            style={{ minWidth: 140, transition: "all 0.15s" }}
+            style={{ minWidth: 160, transition: "all 0.15s" }}
             onClick={async () => {
+              const url = `${window.location.origin}/room/${roomCode}`;
               try {
-                await navigator.clipboard.writeText(roomCode);
+                await navigator.clipboard.writeText(url);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               } catch {}
             }}
           >
-            {copied ? "✓ COPIED!" : "COPY CODE"}
+            {copied ? "✓ LINK COPIED!" : "SHARE LINK"}
           </button>
           <div className="text-xs text-[#666] animate-glow">WAITING FOR OPPONENT...</div>
           <button className="btn btn-sm text-[#666] border-[#333] mt-1" onClick={goToLobby}>BACK</button>
