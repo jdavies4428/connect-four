@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ROWS, COLS, EMPTY, P1, P2, createBoard, getDropRow, checkWin, genPlayerId } from "@/lib/game";
-import { getAiMove } from "@/lib/ai";
 import { roomApi } from "@/lib/api-client";
 import { sounds } from "@/lib/sounds";
 import Confetti from "./Confetti";
@@ -45,8 +44,11 @@ export default function Game() {
   const [audioReady, setAudioReady] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [copied, setCopied] = useState(false);
+
   const pollRef = useRef(null);
   const aiRef = useRef(null);
+  const workerRef = useRef(null);
 
   const isMyTurn = mode === "ai"
     ? currentPlayer === P1 && !winner
@@ -80,6 +82,7 @@ export default function Game() {
   const goToLobby = () => {
     clearTimeout(aiRef.current);
     clearInterval(pollRef.current);
+    workerRef.current?.terminate(); workerRef.current = null;
     setScreen("lobby"); setMode(null); setWinner(null); setShowConfetti(false);
     setError(""); setJoinInput(""); setAiThinking(false); setLoading(false);
     setPlayerName(""); setOpponentName(""); setScores({ p1: 0, p2: 0, draws: 0 });
@@ -228,44 +231,48 @@ export default function Game() {
     if (mode !== "ai" || currentPlayer !== P2 || winner || aiThinking) return;
     setAiThinking(true);
 
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        try {
-          const col = getAiMove(board, difficulty);
-          const row = col >= 0 ? getDropRow(board, col) : -1;
-          if (col < 0 || row < 0) { setAiThinking(false); return; }
+    // Run AI in a Web Worker so the main thread (and UI) stays fully responsive
+    const worker = new Worker("/ai-worker.js");
+    workerRef.current = worker;
 
-          aiRef.current = setTimeout(() => {
-            sounds.drop();
-            const nb = board.map(r => [...r]);
-            nb[row][col] = P2;
-            const mc = moveCount + 1;
+    worker.onmessage = (e) => {
+      const { col } = e.data;
+      const row = col >= 0 ? getDropRow(board, col) : -1;
+      if (col < 0 || row < 0) { setAiThinking(false); worker.terminate(); return; }
 
-            setAnimatingDrop({ row, col, player: P2 });
-            setTimeout(() => { setAnimatingDrop(null); sounds.land(); }, 350);
+      aiRef.current = setTimeout(() => {
+        sounds.drop();
+        const nb = board.map(r => [...r]);
+        nb[row][col] = P2;
+        const mc = moveCount + 1;
 
-            const wr = checkWin(nb, row, col);
-            const w = wr ? P2 : mc >= 42 ? -1 : null;
+        setAnimatingDrop({ row, col, player: P2 });
+        setTimeout(() => { setAnimatingDrop(null); sounds.land(); }, 350);
 
-            setBoard(nb); setCurrentPlayer(P1); setMoveCount(mc); setAiThinking(false);
+        const wr = checkWin(nb, row, col);
+        const w = wr ? P2 : mc >= 42 ? -1 : null;
 
-            if (w) {
-              setWinner(w); setWinCells(wr || []);
-              if (w !== -1) setLastWinner(w);
-              setScores(prev => ({
-                p1: prev.p1,
-                p2: w === P2 ? prev.p2 + 1 : prev.p2,
-                draws: w === -1 ? prev.draws + 1 : prev.draws,
-              }));
-              w === -1 ? sounds.turn() : sounds.lose();
-              setScreen("gameOver");
-            }
-          }, 200);
-        } catch { setAiThinking(false); }
-      });
-    });
+        setBoard(nb); setCurrentPlayer(P1); setMoveCount(mc); setAiThinking(false);
 
-    return () => { cancelAnimationFrame(id); clearTimeout(aiRef.current); };
+        if (w) {
+          setWinner(w); setWinCells(wr || []);
+          if (w !== -1) setLastWinner(w);
+          setScores(prev => ({
+            p1: prev.p1,
+            p2: w === P2 ? prev.p2 + 1 : prev.p2,
+            draws: w === -1 ? prev.draws + 1 : prev.draws,
+          }));
+          w === -1 ? sounds.turn() : sounds.lose();
+          setScreen("gameOver");
+        }
+        worker.terminate();
+      }, 200);
+    };
+
+    worker.onerror = () => { setAiThinking(false); worker.terminate(); };
+    worker.postMessage({ board, difficulty });
+
+    return () => { workerRef.current?.terminate(); workerRef.current = null; clearTimeout(aiRef.current); };
   }, [mode, currentPlayer, winner, board, difficulty, moveCount, aiThinking]);
 
   // ── Human move ──
@@ -419,11 +426,21 @@ export default function Game() {
           <div className="text-sm text-[#aaa]">ROOM CODE</div>
           <div className="text-4xl font-bold tracking-[12px] text-[#7bed9f]"
             style={{ textShadow: "0 0 20px rgba(123,237,159,0.4)" }}>{roomCode}</div>
+          <button
+            className="btn btn-sm border-[#7bed9f] text-[#7bed9f]"
+            style={{ minWidth: 140, transition: "all 0.15s" }}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(roomCode);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              } catch {}
+            }}
+          >
+            {copied ? "✓ COPIED!" : "COPY CODE"}
+          </button>
           <div className="text-xs text-[#666] animate-glow">WAITING FOR OPPONENT...</div>
-          <div className="text-[10px] text-[#444] max-w-[260px] text-center leading-7">
-            Share this code with a friend.
-          </div>
-          <button className="btn btn-sm text-[#666] border-[#333] mt-3" onClick={goToLobby}>BACK</button>
+          <button className="btn btn-sm text-[#666] border-[#333] mt-1" onClick={goToLobby}>BACK</button>
         </div>
       )}
 
