@@ -55,9 +55,6 @@ export default function Game({ initialCode = "" }) {
   const [loading, setLoading] = useState(false);
 
   const [copied, setCopied] = useState(false);
-  const [muted, setMutedState] = useState(() =>
-    typeof window !== "undefined" && localStorage.getItem("muted") === "1"
-  );
 
   const pollRef = useRef(null);
   const aiRef = useRef(null);
@@ -240,12 +237,6 @@ export default function Game({ initialCode = "" }) {
     return () => { active = false; clearInterval(pollRef.current); };
   }, [screen, roomCode, moveCount, winner, playerNum, mode, gameNumber, opponentName]);
 
-  // Sync mute state to sounds module + localStorage
-  useEffect(() => {
-    sounds.setMuted(muted);
-    localStorage.setItem("muted", muted ? "1" : "0");
-  }, [muted]);
-
   // Pre-fill join input when arriving via a share link (/room/CODE)
   useEffect(() => {
     if (initialCode) setJoinInput(initialCode.toUpperCase().slice(0, 4));
@@ -402,15 +393,6 @@ export default function Game({ initialCode = "" }) {
 
       <div className="scanlines" />
       {showConfetti && <Confetti />}
-
-      {/* Mute toggle */}
-      <button
-        className="absolute top-3 right-3 font-pixel text-[10px] border px-2 py-1.5 transition-all duration-150"
-        style={{ color: muted ? "#2a2a2a" : "#555", borderColor: muted ? "#1a1a1a" : "#333" }}
-        onClick={(e) => { e.stopPropagation(); setMutedState(m => !m); }}
-      >
-        {muted ? "MUTE" : "SFX"}
-      </button>
 
       {/* Title — hidden on lobby (lobby card has its own) */}
       {screen !== "lobby" && (
