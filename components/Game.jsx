@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ROWS, COLS, EMPTY, P1, P2, createBoard, getDropRow, checkWin, genPlayerId } from "@/lib/game";
+import { getAiMove } from "@/lib/ai";
 import { roomApi } from "@/lib/api-client";
 import { sounds } from "@/lib/sounds";
 import Confetti from "./Confetti";
@@ -82,7 +83,7 @@ export default function Game() {
   const goToLobby = () => {
     clearTimeout(aiRef.current);
     clearInterval(pollRef.current);
-    if (workerRef.current) workerRef.current.onmessage = null;
+    if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null; }
     setScreen("lobby"); setMode(null); setWinner(null); setShowConfetti(false);
     setError(""); setJoinInput(""); setAiThinking(false); setLoading(false);
     setPlayerName(""); setOpponentName(""); setScores({ p1: 0, p2: 0, draws: 0 });
@@ -226,39 +227,29 @@ export default function Game() {
     return () => { active = false; clearInterval(pollRef.current); };
   }, [screen, roomCode, moveCount, winner, playerNum, mode, gameNumber, opponentName]);
 
-  // Create the AI worker once on mount and reuse it — avoids per-turn init cost on mobile
-  useEffect(() => {
-    workerRef.current = new Worker("/ai-worker.js");
-    return () => { workerRef.current?.terminate(); workerRef.current = null; };
-  }, []);
-
   // ── AI move ──
   useEffect(() => {
     if (mode !== "ai" || currentPlayer !== P2 || winner || aiThinking) return;
-    const worker = workerRef.current;
-    if (!worker) return;
     setAiThinking(true);
 
-    worker.onmessage = (e) => {
-      worker.onmessage = null;
-      const { col } = e.data;
+    let done = false;
+
+    // Shared logic: apply whatever column was chosen
+    const applyCol = (col) => {
+      if (done) return;
+      done = true;
       const row = col >= 0 ? getDropRow(board, col) : -1;
       if (col < 0 || row < 0) { setAiThinking(false); return; }
-
       aiRef.current = setTimeout(() => {
         sounds.drop();
         const nb = board.map(r => [...r]);
         nb[row][col] = P2;
         const mc = moveCount + 1;
-
         setAnimatingDrop({ row, col, player: P2 });
         setTimeout(() => { setAnimatingDrop(null); sounds.land(); }, 350);
-
         const wr = checkWin(nb, row, col);
         const w = wr ? P2 : mc >= 42 ? -1 : null;
-
         setBoard(nb); setCurrentPlayer(P1); setMoveCount(mc); setAiThinking(false);
-
         if (w) {
           setWinner(w); setWinCells(wr || []);
           if (w !== -1) setLastWinner(w);
@@ -273,10 +264,42 @@ export default function Game() {
       }, 200);
     };
 
-    worker.onerror = () => { worker.onerror = null; setAiThinking(false); };
-    worker.postMessage({ board, difficulty });
+    // Sync fallback — always works, short deadline keeps it fast enough
+    const syncFallback = () => {
+      const id = requestAnimationFrame(() => requestAnimationFrame(() => {
+        try { applyCol(getAiMove(board, difficulty)); }
+        catch { if (!done) { done = true; setAiThinking(false); } }
+      }));
+      return id;
+    };
 
-    return () => { if (worker) worker.onmessage = null; clearTimeout(aiRef.current); };
+    // Try Worker first (non-blocking); if it fails or goes silent, sync saves us
+    let worker = null;
+    let rafId = null;
+    let watchdog = null;
+
+    try {
+      worker = new Worker("/ai-worker.js");
+      workerRef.current = worker;
+      worker.onmessage = (e) => { worker.terminate(); workerRef.current = null; applyCol(e.data.col); };
+      worker.onerror  = ()  => { worker.terminate(); workerRef.current = null; if (!done) rafId = syncFallback(); };
+      worker.postMessage({ board, difficulty });
+      // If worker goes silent (stale/suspended on mobile), sync kicks in after 800ms
+      watchdog = setTimeout(() => {
+        if (done) return;
+        worker.onmessage = null; worker.terminate(); workerRef.current = null;
+        rafId = syncFallback();
+      }, 800);
+    } catch {
+      rafId = syncFallback();
+    }
+
+    return () => {
+      done = true;
+      clearTimeout(watchdog); clearTimeout(aiRef.current);
+      if (rafId) cancelAnimationFrame(rafId);
+      if (worker) { worker.onmessage = null; worker.terminate(); workerRef.current = null; }
+    };
   }, [mode, currentPlayer, winner, board, difficulty, moveCount, aiThinking]);
 
   // ── Human move ──
